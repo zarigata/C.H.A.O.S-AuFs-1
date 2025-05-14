@@ -1,0 +1,283 @@
+// █████████████████████████████████████████████████████████████████████
+// █ C.H.A.O.S. DATABASE SCHEMA                                            █
+// █ Defines the data models for the Communication Hub app                 █
+// █████████████████████████████████████████████████████████████████████████
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// [USER] User model - Core entity for authentication and identity
+model User {
+  id                String    @id @default(uuid())
+  username          String    @unique
+  email             String    @unique
+  password          String
+  displayName       String?
+  status            UserStatus @default(OFFLINE)
+  statusMessage     String?
+  avatarUrl         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // [REL] Relationships
+  sentMessages      Message[] @relation("SentMessages")
+  receivedMessages  Message[] @relation("ReceivedMessages")
+  membership        HubMembership[]
+  sentFriendRequests FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  friendships1      Friendship[] @relation("UserFriendships1")
+  friendships2      Friendship[] @relation("UserFriendships2")
+  ownedHubs         Hub[] @relation("HubOwner")
+  sessions          Session[]
+  
+  // [SEC] Security and preferences
+  twoFactorEnabled  Boolean   @default(false)
+  encryptionPublicKey String?
+  themePreference   String?   @default("system")
+  notificationPreferences Json?
+  
+  @@map("users")
+}
+
+// [MSG] Message model - For direct and channel communications
+model Message {
+  id            String    @id @default(uuid())
+  content       String
+  encrypted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // [REL] Relationships
+  senderId      String
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id])
+  
+  // [OPT] Optional relations based on message type
+  receiverId    String?
+  receiver      User?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  channelId     String?
+  channel       Channel?  @relation(fields: [channelId], references: [id])
+  
+  // [META] Message metadata
+  readAt        DateTime?
+  reactions     Reaction[]
+  attachments   Attachment[]
+  replyToId     String?
+  replyTo       Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies       Message[] @relation("MessageReplies")
+  
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([channelId])
+  @@map("messages")
+}
+
+// [HUB] Hub model - Discord-like servers
+model Hub {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  iconUrl       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // [REL] Relationships
+  ownerId       String
+  owner         User      @relation("HubOwner", fields: [ownerId], references: [id])
+  channels      Channel[]
+  members       HubMembership[]
+  invites       HubInvite[]
+  
+  // [CONFIG] Hub configuration
+  isPublic      Boolean   @default(false)
+  
+  @@index([ownerId])
+  @@map("hubs")
+}
+
+// [CHAN] Channel model - Communication spaces within hubs
+model Channel {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  type          ChannelType @default(TEXT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // [REL] Relationships
+  hubId         String
+  hub           Hub       @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  
+  @@unique([hubId, name])
+  @@index([hubId])
+  @@map("channels")
+}
+
+// [MEM] Hub membership with roles
+model HubMembership {
+  id            String    @id @default(uuid())
+  
+  // [REL] Relationships
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hubId         String
+  hub           Hub       @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  
+  // [ROLE] User role within the hub
+  role          HubRole   @default(MEMBER)
+  joinedAt      DateTime  @default(now())
+  
+  @@unique([userId, hubId])
+  @@index([userId])
+  @@index([hubId])
+  @@map("hub_memberships")
+}
+
+// [INV] Hub invitations
+model HubInvite {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  
+  // [REL] Relationships
+  hubId         String
+  hub           Hub       @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  
+  // [META] Invitation metadata
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  maxUses       Int?
+  currentUses   Int       @default(0)
+  
+  @@index([hubId])
+  @@map("hub_invites")
+}
+
+// [REACT] Message reactions (emojis)
+model Reaction {
+  id            String    @id @default(uuid())
+  emoji         String
+  
+  // [REL] Relationships
+  messageId     String
+  message       Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId        String
+  
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+// [FRIEND] Friend relationships
+model Friendship {
+  id            String    @id @default(uuid())
+  
+  // [REL] Relationships
+  userId1       String
+  user1         User      @relation("UserFriendships1", fields: [userId1], references: [id])
+  userId2       String
+  user2         User      @relation("UserFriendships2", fields: [userId2], references: [id])
+  
+  // [META] Friendship metadata
+  createdAt     DateTime  @default(now())
+  
+  @@unique([userId1, userId2])
+  @@index([userId1])
+  @@index([userId2]) 
+  @@map("friendships")
+}
+
+// [REQ] Friend requests
+model FriendRequest {
+  id            String    @id @default(uuid())
+  
+  // [REL] Relationships
+  senderId      String
+  sender        User      @relation("SentFriendRequests", fields: [senderId], references: [id])
+  receiverId    String
+  receiver      User      @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
+  
+  // [META] Request metadata
+  status        RequestStatus @default(PENDING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("friend_requests")
+}
+
+// [FILE] File attachments for messages
+model Attachment {
+  id            String    @id @default(uuid())
+  url           String
+  filename      String
+  filesize      Int
+  filetype      String
+  
+  // [REL] Relationships
+  messageId     String
+  message       Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@index([messageId])
+  @@map("attachments")
+}
+
+// [SESSION] User sessions for refresh tokens
+model Session {
+  id            String    @id @default(uuid())
+  
+  // [REL] Relationships
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // [META] Session metadata
+  refreshToken  String    @unique
+  userAgent     String?
+  ipAddress     String?
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  
+  @@index([userId])
+  @@map("sessions")
+}
+
+// [ENUM] User status options
+enum UserStatus {
+  ONLINE
+  IDLE
+  DO_NOT_DISTURB
+  INVISIBLE
+  OFFLINE
+  CUSTOM
+}
+
+// [ENUM] Channel types
+enum ChannelType {
+  TEXT
+  VOICE
+  VIDEO
+  ANNOUNCEMENT
+  STREAM
+}
+
+// [ENUM] Hub member roles
+enum HubRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+// [ENUM] Request statuses
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
