@@ -30,6 +30,7 @@
     "@fastify/websocket": "^8.2.0",
     "@prisma/client": "^5.0.0",
     "bcrypt": "^5.1.0",
+    "chaos-backend": "file:",
     "dotenv": "^16.3.1",
     "fastify": "^4.21.0",
     "fastify-plugin": "^4.5.1",
