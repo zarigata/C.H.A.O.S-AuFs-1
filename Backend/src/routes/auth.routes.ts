@@ -1,23 +1,24 @@
-/**
- * ███████████████████████████████████████████████████████████████████
- * █ C.H.A.O.S. AUTHENTICATION ROUTES                               █
- * █ User registration, login, and token management endpoints       █
- * ███████████████████████████████████████████████████████████████████
- */
+// =============================================
+// ============== CODEX AUTH =================
+// =============================================
+// Authentication routes for C.H.A.O.S.
+// Handles user registration, login, token refresh, and logout
 
-import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import fp from 'fastify-plugin';
-import { hashPassword, verifyPassword, generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/auth';
-import { AppError } from '../middleware/errorHandler';
-import { logger } from '../utils/logger';
+import fastifyPlugin from 'fastify-plugin';
+import bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
 
-// [SCHEMAS] Input validation schemas
+// Initialize Prisma client
+const prisma = new PrismaClient();
+
+// Validation schemas
 const registerSchema = z.object({
   username: z.string().min(3).max(30),
   email: z.string().email(),
-  password: z.string().min(8).max(100),
-  displayName: z.string().min(1).max(50).optional(),
+  password: z.string().min(8),
+  displayName: z.string().min(1).max(50),
 });
 
 const loginSchema = z.object({
@@ -25,28 +26,24 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-const refreshTokenSchema = z.object({
+const refreshSchema = z.object({
   refreshToken: z.string(),
 });
 
-/**
- * [ROUTES] Authentication routes plugin
- * Handles user registration, login, token refresh, and logout
- */
-const authRoutes: FastifyPluginAsync = fp(async (fastify: FastifyInstance) => {
-  /**
-   * [REGISTER] Create new user account
-   * POST /api/auth/register
-   */
+// Auth routes plugin
+export default fastifyPlugin(async (fastify: FastifyInstance) => {
+  // =============================================
+  // ============== USER REGISTRATION ===========
+  // =============================================
   fastify.post('/register', {
     schema: {
       body: {
         type: 'object',
-        required: ['username', 'email', 'password'],
+        required: ['username', 'email', 'password', 'displayName'],
         properties: {
           username: { type: 'string', minLength: 3, maxLength: 30 },
           email: { type: 'string', format: 'email' },
-          password: { type: 'string', minLength: 8, maxLength: 100 },
+          password: { type: 'string', minLength: 8 },
           displayName: { type: 'string', minLength: 1, maxLength: 50 },
         },
       },
@@ -54,105 +51,88 @@ const authRoutes: FastifyPluginAsync = fp(async (fastify: FastifyInstance) => {
         201: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            user: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                username: { type: 'string' },
-                email: { type: 'string' },
-                displayName: { type: 'string' },
-              },
-            },
-            token: { type: 'string' },
-            refreshToken: { type: 'string' },
+            id: { type: 'string' },
+            username: { type: 'string' },
+            email: { type: 'string' },
+            displayName: { type: 'string' },
           },
         },
       },
     },
   }, async (request, reply) => {
     try {
-      // [PARSE] Validate request body
+      // Validate request body
       const { username, email, password, displayName } = registerSchema.parse(request.body);
       
-      // [CHECK] Check for existing user with same email or username
-      const existingUser = await fastify.prisma.user.findFirst({
+      // Check if user already exists
+      const existingUser = await prisma.user.findFirst({
         where: {
           OR: [
-            { email },
             { username },
+            { email },
           ],
         },
       });
       
       if (existingUser) {
-        throw new AppError(
-          existingUser.email === email 
-            ? 'Email already registered' 
-            : 'Username already taken',
-          400,
-          'VALIDATION_ERROR'
-        );
+        return reply.code(409).send({ 
+          error: 'User already exists',
+          field: existingUser.username === username ? 'username' : 'email'
+        });
       }
       
-      // [HASH] Hash the password
-      const hashedPassword = await hashPassword(password);
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
       
-      // [CREATE] Create new user record
-      const newUser = await fastify.prisma.user.create({
+      // Create user
+      const user = await prisma.user.create({
         data: {
           username,
           email,
-          password: hashedPassword,
-          displayName: displayName || username,
-          status: 'ONLINE',
+          passwordHash,
+          displayName,
+          status: 'OFFLINE',
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          displayName: true,
+          avatar: true,
+          status: true,
+          createdAt: true,
         },
       });
       
-      // [GENERATE] Create auth tokens
-      const tokenPayload = { userId: newUser.id, username: newUser.username };
-      const token = generateToken(tokenPayload);
-      const refreshToken = generateRefreshToken(tokenPayload);
+      // Generate tokens
+      const tokens = generateTokens(user.id);
       
-      // [STORE] Save refresh token to database
-      await fastify.prisma.session.create({
-        data: {
-          userId: newUser.id,
-          refreshToken,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          userAgent: request.headers['user-agent'],
-          ipAddress: request.ip,
-        },
+      // Set refresh token cookie
+      reply.setCookie('refreshToken', tokens.refreshToken, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
       
-      // [RESPOND] Return user data and tokens
-      return reply.status(201).send({
-        success: true,
-        user: {
-          id: newUser.id,
-          username: newUser.username,
-          email: newUser.email,
-          displayName: newUser.displayName,
-        },
-        token,
-        refreshToken,
+      return reply.code(201).send({
+        ...user,
+        accessToken: tokens.accessToken,
       });
     } catch (error) {
-      // [ERROR] Pass validation errors to global handler
       if (error instanceof z.ZodError) {
-        throw error;
+        return reply.code(400).send({ error: 'Validation error', details: error.errors });
       }
       
-      // [LOG] Log unexpected errors
-      logger.error('Registration error:', error);
-      throw error;
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   });
   
-  /**
-   * [LOGIN] Authenticate user and issue tokens
-   * POST /api/auth/login
-   */
+  // =============================================
+  // ============== USER LOGIN ==================
+  // =============================================
   fastify.post('/login', {
     schema: {
       body: {
@@ -167,103 +147,79 @@ const authRoutes: FastifyPluginAsync = fp(async (fastify: FastifyInstance) => {
         200: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            user: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                username: { type: 'string' },
-                email: { type: 'string' },
-                displayName: { type: 'string' },
-                avatarUrl: { type: 'string', nullable: true },
-                status: { type: 'string' },
-                statusMessage: { type: 'string', nullable: true },
-              },
-            },
-            token: { type: 'string' },
-            refreshToken: { type: 'string' },
+            id: { type: 'string' },
+            username: { type: 'string' },
+            email: { type: 'string' },
+            displayName: { type: 'string' },
+            accessToken: { type: 'string' },
           },
         },
       },
     },
   }, async (request, reply) => {
     try {
-      // [PARSE] Validate request body
+      // Validate request body
       const { email, password } = loginSchema.parse(request.body);
       
-      // [FIND] Find user by email
-      const user = await fastify.prisma.user.findUnique({
+      // Find user by email
+      const user = await prisma.user.findUnique({
         where: { email },
       });
       
-      // [CHECK] Verify user exists and password is correct
       if (!user) {
-        throw new AppError('Invalid email or password', 401, 'AUTHENTICATION_ERROR');
+        return reply.code(401).send({ error: 'Invalid credentials' });
       }
       
-      const passwordValid = await verifyPassword(password, user.password);
-      if (!passwordValid) {
-        throw new AppError('Invalid email or password', 401, 'AUTHENTICATION_ERROR');
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      
+      if (!isPasswordValid) {
+        return reply.code(401).send({ error: 'Invalid credentials' });
       }
       
-      // [GENERATE] Create auth tokens
-      const tokenPayload = { userId: user.id, username: user.username };
-      const token = generateToken(tokenPayload);
-      const refreshToken = generateRefreshToken(tokenPayload);
+      // Generate tokens
+      const tokens = generateTokens(user.id);
       
-      // [UPDATE] Update user status to ONLINE
-      await fastify.prisma.user.update({
+      // Set refresh token cookie
+      reply.setCookie('refreshToken', tokens.refreshToken, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      // Update user status to online
+      await prisma.user.update({
         where: { id: user.id },
         data: { status: 'ONLINE' },
       });
       
-      // [STORE] Save refresh token to database
-      await fastify.prisma.session.create({
-        data: {
-          userId: user.id,
-          refreshToken,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          userAgent: request.headers['user-agent'],
-          ipAddress: request.ip,
-        },
-      });
-      
-      // [RESPOND] Return user data and tokens
-      return reply.send({
-        success: true,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-          status: 'ONLINE',
-          statusMessage: user.statusMessage,
-        },
-        token,
-        refreshToken,
+      return reply.code(200).send({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        status: 'ONLINE',
+        accessToken: tokens.accessToken,
       });
     } catch (error) {
-      // [ERROR] Pass validation errors to global handler
       if (error instanceof z.ZodError) {
-        throw error;
+        return reply.code(400).send({ error: 'Validation error', details: error.errors });
       }
       
-      // [LOG] Log unexpected errors
-      logger.error('Login error:', error);
-      throw error;
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   });
   
-  /**
-   * [REFRESH] Issue new access token using refresh token
-   * POST /api/auth/refresh
-   */
+  // =============================================
+  // ============== TOKEN REFRESH ===============
+  // =============================================
   fastify.post('/refresh', {
     schema: {
       body: {
         type: 'object',
-        required: ['refreshToken'],
         properties: {
           refreshToken: { type: 'string' },
         },
@@ -272,77 +228,66 @@ const authRoutes: FastifyPluginAsync = fp(async (fastify: FastifyInstance) => {
         200: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            token: { type: 'string' },
+            accessToken: { type: 'string' },
           },
         },
       },
     },
   }, async (request, reply) => {
     try {
-      // [PARSE] Validate request body
-      const { refreshToken } = refreshTokenSchema.parse(request.body);
+      // Get refresh token from cookie or request body
+      const refreshToken = request.cookies.refreshToken || 
+        (request.body as { refreshToken?: string })?.refreshToken;
       
-      // [VERIFY] Decode and verify refresh token
-      const decoded = verifyRefreshToken(refreshToken);
-      
-      // [FIND] Check if token exists in database
-      const session = await fastify.prisma.session.findUnique({
-        where: { refreshToken },
-        include: { user: true },
-      });
-      
-      if (!session || session.userId !== decoded.userId) {
-        throw new AppError('Invalid refresh token', 401, 'AUTHENTICATION_ERROR');
+      if (!refreshToken) {
+        return reply.code(401).send({ error: 'Refresh token required' });
       }
       
-      if (new Date() > session.expiresAt) {
-        // [CLEANUP] Remove expired session
-        await fastify.prisma.session.delete({
-          where: { id: session.id },
-        });
-        throw new AppError('Refresh token expired', 401, 'AUTHENTICATION_ERROR');
+      // Verify refresh token
+      let decoded: any;
+      
+      try {
+        decoded = fastify.jwt.verify(refreshToken);
+      } catch (error) {
+        return reply.code(401).send({ error: 'Invalid refresh token' });
       }
       
-      // [GENERATE] Create new access token
-      const tokenPayload = { userId: session.userId, username: session.user.username };
-      const newToken = generateToken(tokenPayload);
+      // Check if token is refresh token
+      if (decoded.type !== 'refresh') {
+        return reply.code(401).send({ error: 'Invalid token type' });
+      }
       
-      // [RESPOND] Return new access token
-      return reply.send({
-        success: true,
-        token: newToken,
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
       });
+      
+      if (!user) {
+        return reply.code(401).send({ error: 'User not found' });
+      }
+      
+      // Generate new access token
+      const accessToken = fastify.jwt.sign(
+        { userId: user.id, type: 'access' },
+        { expiresIn: '15m' }
+      );
+      
+      return reply.code(200).send({ accessToken });
     } catch (error) {
-      // [ERROR] Pass validation errors to global handler
-      if (error instanceof z.ZodError) {
-        throw error;
-      }
-      
-      // [LOG] Log unexpected errors
-      logger.error('Token refresh error:', error);
-      throw error;
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   });
   
-  /**
-   * [LOGOUT] Invalidate refresh token
-   * POST /api/auth/logout
-   */
+  // =============================================
+  // ============== USER LOGOUT =================
+  // =============================================
   fastify.post('/logout', {
     schema: {
-      body: {
-        type: 'object',
-        required: ['refreshToken'],
-        properties: {
-          refreshToken: { type: 'string' },
-        },
-      },
       response: {
         200: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
             message: { type: 'string' },
           },
         },
@@ -350,30 +295,51 @@ const authRoutes: FastifyPluginAsync = fp(async (fastify: FastifyInstance) => {
     },
   }, async (request, reply) => {
     try {
-      // [PARSE] Validate request body
-      const { refreshToken } = refreshTokenSchema.parse(request.body);
+      // Clear refresh token cookie
+      reply.clearCookie('refreshToken', { path: '/' });
       
-      // [DELETE] Remove session from database
-      await fastify.prisma.session.deleteMany({
-        where: { refreshToken },
-      });
+      // Get user ID from token if available
+      let userId: string | undefined;
       
-      // [RESPOND] Confirm logout
-      return reply.send({
-        success: true,
-        message: 'Successfully logged out',
-      });
-    } catch (error) {
-      // [ERROR] Pass validation errors to global handler
-      if (error instanceof z.ZodError) {
-        throw error;
+      const authHeader = request.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        
+        try {
+          const decoded = fastify.jwt.verify(token) as { userId: string };
+          userId = decoded.userId;
+          
+          // Update user status to offline
+          if (userId) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { status: 'OFFLINE' },
+            });
+          }
+        } catch (error) {
+          // Token verification failed, but we still want to clear the cookie
+        }
       }
       
-      // [LOG] Log unexpected errors
-      logger.error('Logout error:', error);
-      throw error;
+      return reply.code(200).send({ message: 'Logged out successfully' });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   });
+  
+  // Helper function to generate tokens
+  function generateTokens(userId: string) {
+    const accessToken = fastify.jwt.sign(
+      { userId, type: 'access' },
+      { expiresIn: '15m' }
+    );
+    
+    const refreshToken = fastify.jwt.sign(
+      { userId, type: 'refresh' },
+      { expiresIn: '30d' }
+    );
+    
+    return { accessToken, refreshToken };
+  }
 });
-
-export default authRoutes;

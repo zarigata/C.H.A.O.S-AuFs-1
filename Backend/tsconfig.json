@@ -1,36 +1,17 @@
 {
   "compilerOptions": {
-    /* █████████████████████████████████████████████
-       █ C.H.A.O.S. BACKEND - TypeScript Config    █
-       █ Cross-platform messaging system           █ 
-       █████████████████████████████████████████████ */
-    
-    "target": "ES2022",            // [!] Use modern JS features for optimal performance  
-    "module": "NodeNext",          // [#] NodeNext ensures compatibility with ESM and CJS
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,       // [+] Required for clean imports between module systems
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    
-    /* [CORE] Strict Type-Checking Options */
-    "strict": true,                // [!] Activates all strict type checking options
-    "skipLibCheck": true,          // [!] Skip type checking of declaration files
-    "noImplicitAny": true,         // [!] Error on expressions and declarations with implied 'any' type
-    "strictNullChecks": true,      // [!] Enable strict null checks
-
-    /* [SYS] Build Configuration */
-    "outDir": "./dist",            // [>] Output directory for compiled code
-    "rootDir": "./src",            // [<] Root directory for source files
-    "baseUrl": "./",               // [@] Base directory for resolving non-relative module names
-    "paths": {
-      "@/*": ["src/*"]            // [@] Path aliases for cleaner imports
-    },
-    
-    /* [DBG] Source Map Options */
-    "sourceMap": true,             // [*] Generates corresponding .map files for debugging
-    
-    /* [COMP] Advanced Options */
-    "resolveJsonModule": true,     // [!] Allow importing .json files for configuration
-    "declaration": true,           // [+] Generate .d.ts files from TypeScript and JavaScript files
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.test.ts"]

@@ -1,127 +1,100 @@
-/**
- * ███████████████████████████████████████████████████████████████████████████
- * █ C.H.A.O.S. BACKEND SERVER                                              █
- * █ Communication Hub for Animated Online Socializing                      █
- * █ Main application entry point                                           █
- * ███████████████████████████████████████████████████████████████████████████
- * 
- * This is the main entry point for the C.H.A.O.S. Backend API server.
- * It initializes the Fastify server and sets up all required plugins,
- * routes, and services.
- * 
- * @license MIT
- * @version 0.1.0
- */
+// =============================================
+// ============== CODEX MAIN ==================
+// =============================================
+// C.H.A.O.S. Backend Entry Point
+// Communication Hub for Animated Online Socializing
+// Main server initialization and configuration
 
-import 'dotenv/config';
 import Fastify, { FastifyInstance } from 'fastify';
+import dotenv from 'dotenv';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
-import rateLimit from '@fastify/rate-limit';
 
-import { initializeWebSocketServer } from './websocket/server';
-import { registerRoutes } from './routes';
-import { databasePlugin } from './plugins/database';
-import { errorHandler } from './middleware/errorHandler';
-import { logger } from './utils/logger';
-import { configureSwagger } from './config/swagger';
+// Import route plugins
+import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
+import hubRoutes from './routes/hub.routes';
+import channelRoutes from './routes/channel.routes';
+import messageRoutes from './routes/message.routes';
+import friendRoutes from './routes/friend.routes';
+import directMessageRoutes from './routes/direct-message.routes';
 
-// [GLOBALS] Define process level constants
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-const HOST = process.env.HOST || '0.0.0.0';
-const NODE_ENV = process.env.NODE_ENV || 'development';
+// Import WebSocket handler
+import setupWebsocketHandlers from './websocket';
 
-/**
- * [CORE] Initialize and configure the main Fastify server instance
- * This sets up all middleware, plugins, and core server functionality
- */
-const buildServer = async (): Promise<FastifyInstance> => {
-  // [INIT] Create the server instance with logging configuration
-  const server = Fastify({
-    logger: NODE_ENV === 'development',
-    trustProxy: true, // Required for proper IP detection behind proxy
-  });
+// Load environment variables
+dotenv.config();
 
-  // [GLOBAL] Set up global error handler
-  server.setErrorHandler(errorHandler);
+// Create Fastify instance
+const server: FastifyInstance = Fastify({
+  logger: true,
+  trustProxy: true,
+});
 
-  // [PLUGINS] Register required plugins
-  await server.register(cors, {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173', 'http://localhost:3000'],
-    credentials: true,
-  });
-
-  await server.register(jwt, {
-    secret: process.env.JWT_SECRET || 'fallback_development_secret_key',
-    sign: {
-      expiresIn: process.env.JWT_EXPIRES_IN || '1d',
-    },
-  });
-
-  await server.register(rateLimit, {
-    max: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX) : 100,
-    timeWindow: process.env.RATE_LIMIT_TIMEWINDOW ? process.env.RATE_LIMIT_TIMEWINDOW : '1 minute',
-  });
-
-  // [DB] Initialize database connection
-  await server.register(databasePlugin);
-
-  // [API-DOCS] Register Swagger for API documentation
-  await server.register(swagger, configureSwagger());
-
-  // [WEBSOCKET] Register WebSocket server
-  await server.register(websocket, {
-    options: { maxPayload: 1048576 } // 1MB max payload
-  });
-  
-  // [ROUTES] Register all API routes
-  await server.register(registerRoutes);
-  
-  // [WEBSOCKET] Initialize WebSocket event handlers after all plugins 
-  server.ready(() => {
-    initializeWebSocketServer(server);
-    logger.info('WebSocket server initialized');
-  });
-
-  return server;
-};
-
-/**
- * [BOOT] Application startup function
- * Initializes the server and starts listening on the configured port
- */
-const startServer = async () => {
+// Register plugins
+async function setupServer() {
   try {
-    const server = await buildServer();
-    
-    // [HEALTH] Add basic health check route
+    // Register CORS
+    await server.register(cors, {
+      origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+      credentials: true,
+    });
+
+    // Register JWT
+    await server.register(jwt, {
+      secret: process.env.JWT_SECRET || 'supersecretkey',
+    });
+
+    // Register WebSocket
+    await server.register(websocket);
+
+    // Register Swagger
+    await server.register(swagger, {
+      routePrefix: '/documentation',
+      swagger: {
+        info: {
+          title: 'C.H.A.O.S. API',
+          description: 'API documentation for C.H.A.O.S. (Communication Hub for Animated Online Socializing)',
+          version: '0.1.0',
+        },
+        host: 'localhost:3000',
+        schemes: ['http'],
+        consumes: ['application/json'],
+        produces: ['application/json'],
+      },
+      exposeRoute: true,
+    });
+
+    // Register route plugins
+    await server.register(authRoutes, { prefix: '/api/auth' });
+    await server.register(userRoutes, { prefix: '/api/users' });
+    await server.register(hubRoutes, { prefix: '/api/hubs' });
+    await server.register(channelRoutes, { prefix: '/api/channels' });
+    await server.register(messageRoutes, { prefix: '/api/messages' });
+    await server.register(friendRoutes, { prefix: '/api/friends' });
+    await server.register(directMessageRoutes, { prefix: '/api/direct-messages' });
+
+    // Setup WebSocket handlers
+    setupWebsocketHandlers(server);
+
+    // Health check route
     server.get('/health', async () => {
       return { status: 'ok', timestamp: new Date().toISOString() };
     });
 
-    // [START] Begin listening for requests
-    await server.listen({ port: PORT, host: HOST });
+    // Start server
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+    const host = process.env.HOST || '0.0.0.0';
     
-    logger.info(`
-    ████████████████████████████████████████████████████
-    █ C.H.A.O.S. Server started!                      █
-    █ Environment: ${NODE_ENV.padEnd(33)}█
-    █ Server listening at: http://${HOST}:${PORT}${' '.repeat(19-`${HOST}:${PORT}`.length)}█
-    █ API Documentation: http://${HOST}:${PORT}/docs${' '.repeat(17-`${HOST}:${PORT}/docs`.length)}█
-    ████████████████████████████████████████████████████
-    `);
+    await server.listen({ port, host });
+    console.log(`Server is running on ${host}:${port}`);
   } catch (err) {
-    logger.error('Failed to start server:', err);
+    server.log.error(err);
     process.exit(1);
   }
-};
-
-// [EXEC] Start the server if this file is run directly
-if (require.main === module) {
-  startServer();
 }
 
-// [EXPORT] Export the server builder for testing
-export { buildServer };
+// Run the server
+setupServer();

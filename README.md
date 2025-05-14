@@ -1,189 +1,92 @@
-# C.H.A.O.S.
+# C.H.A.O.S. (Communication Hub for Animated Online Socializing)
 
-**Communication Hub for Animated Online Socializing**
+<div align="center">
+  <img src="./FrontEnd/public/chaos-logo.png" alt="C.H.A.O.S. Logo" width="200" />
+  <h3>A modern communication platform with nostalgic MSN Messenger vibes</h3>
+</div>
 
-![C.H.A.O.S. Logo](https://via.placeholder.com/150x150/245EDC/FFFFFF?text=C.H.A.O.S.)
+## 🌟 Overview
 
-A modern communication platform that combines the nostalgic feel of MSN Messenger with Discord-like community features. Built with security, privacy, and cross-platform compatibility in mind.
+C.H.A.O.S. is a full-stack communication platform that combines the nostalgic charm of MSN Messenger with modern Discord-like features. Built with security, real-time communication, and cross-platform compatibility in mind.
 
-## 🚀 Features
+## ✨ Features
 
-- **Real-time messaging** with typing indicators and read receipts
-- **End-to-end encrypted** private conversations
-- **Community hubs** with multiple channels (Discord-like servers)
-- **MSN-inspired status system** (Online, Away, Busy, Invisible)
-- **Custom themes** with nostalgic MSN design options
-- **Cross-platform** native applications via Tauri
-- **Voice & video** communication (coming soon)
-- **Bot framework** for automation and integration
+- **Real-time Messaging** - Instant message delivery with typing indicators
+- **Hub-based Communities** - Create and join community hubs with multiple channels
+- **End-to-End Encryption** - Secure private messaging
+- **MSN-inspired UI** - Nostalgic design elements with modern UX
+- **Cross-platform** - Desktop apps for Linux and macOS via Tauri
+- **Theme Switching** - Light, dark, and classic MSN themes
+- **Status Indicators** - Online, away, busy, and offline statuses
 
-## 🔧 Technology Stack
+## 🛠️ Tech Stack
 
 ### Frontend
-- React with TypeScript
-- TailwindCSS with Shadcn UI components
-- Tauri for native cross-platform applications
-- Vite for fast development
+- React + TypeScript
+- TailwindCSS + Shadcn/UI
+- Framer Motion for animations
+- Vite for development
+- Tauri for native desktop apps
 
 ### Backend
 - Node.js with Fastify
-- PostgreSQL with Prisma ORM
-- Redis for caching and presence
 - WebSockets for real-time communication
-- JWT authentication
+- PostgreSQL with Prisma ORM
+- Redis for caching and presence tracking
+- JWT + Refresh Token authentication
 
-## 🏗️ Project Structure
-
-```
-C.H.A.O.S/
-├── Frontend/                # React frontend application
-│   ├── app/                 # App routes and layouts
-│   ├── components/          # Reusable React components
-│   └── ...
-├── Backend/                 # Fastify server
-│   ├── src/                 # Server source code
-│   │   ├── controllers/     # Request handlers
-│   │   ├── routes/          # API routes
-│   │   ├── services/        # Business logic
-│   │   └── ...
-│   └── prisma/              # Database schema and migrations
-└── ...
-```
-
-## 📝 Prerequisites
-
-- Node.js v18+ 
-- PostgreSQL 14+
-- Redis 6+
-- Rust (for Tauri builds)
+### Testing
+- Vitest/Jest for unit testing
+- Supertest for API testing
+- Playwright for end-to-end testing
 
 ## 🚀 Getting Started
 
-### Backend Setup
+### Prerequisites
+- Node.js 18+
+- PNPM
+- PostgreSQL
+- Redis
 
-1. Navigate to the backend directory:
-   ```bash
-   cd Backend
-   ```
+### Development Setup
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your database credentials and settings
-   ```
-
-4. Generate Prisma client:
-   ```bash
-   npx prisma generate
-   ```
-
-5. Run database migrations:
-   ```bash
-   npx prisma migrate dev
-   ```
-
-6. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd Frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Python Integration (Optional)
-
-For Python-based components and extensions:
-
-1. Create and activate a virtual environment:
-   ```bash
-   # On Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-
-   # On Linux/macOS
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-2. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### AI Integration with Ollama
-
-C.H.A.O.S. supports integration with Ollama for AI-powered features.
-
-1. [Install Ollama](https://ollama.ai/download)
-2. Pull the default model:
-   ```bash
-   ollama pull llama3.2
-   ```
-3. Update the `.env` file with your Ollama settings:
-   ```
-   OLLAMA_HOST=http://localhost:11434
-   OLLAMA_MODEL=llama3.2
-   ```
-
-## 🖥️ Building Native Apps
-
-### Tauri Build
-
-To build native applications:
-
-1. Ensure Rust is installed.
-2. Navigate to the frontend directory:
-   ```bash
-   cd Frontend
-   ```
-3. Build for your platform:
-   ```bash
-   npm run tauri build
-   ```
-
-Builds will be created for Windows, macOS, and Linux depending on your development environment.
-
-## 🧪 Testing
-
-Run backend tests:
+1. Clone the repository
 ```bash
-cd Backend
-npm test
+git clone https://github.com/yourusername/chaos.git
+cd chaos
 ```
 
-Run frontend tests:
+2. Install dependencies
 ```bash
-cd Frontend
-npm test
+pnpm install
 ```
 
-## 📜 License
+3. Set up environment variables
+```bash
+cp .env.example .env
+# Edit .env with your database credentials and other settings
+```
+
+4. Start the development servers
+```bash
+# Terminal 1: Start the backend
+pnpm run dev:backend
+
+# Terminal 2: Start the frontend
+pnpm run dev:frontend
+```
+
+5. Access the application
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3000
+- API Documentation: http://localhost:3000/documentation
+
+## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🔍 Privacy
+## 🙏 Acknowledgements
 
-C.H.A.O.S. is designed with privacy in mind. All direct messages support end-to-end encryption, and we collect minimal user data. For self-hosting, all data remains under your control.
-
----
-
-Built with ❤️ by the C.H.A.O.S. team
+- Inspired by MSN Messenger and Discord
+- Built with modern web technologies
+- Created with ❤️ by [Your Name]
