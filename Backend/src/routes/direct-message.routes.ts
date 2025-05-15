@@ -168,7 +168,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== CREATE NEW DM ===============
   // =============================================
-  fastify.post('/', {
+  fastify.post('/create', {
     schema: {
       body: {
         type: 'object',
@@ -359,7 +359,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET DM MESSAGES =============
   // =============================================
-  fastify.get('/:id/messages', {
+  fastify.get('/dm/:id/messages', {
     schema: {
       params: {
         type: 'object',
@@ -458,7 +458,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== SEND DM MESSAGE =============
   // =============================================
-  fastify.post('/:id/messages', {
+  fastify.post('/dm/:id/messages', {
     schema: {
       params: {
         type: 'object',
