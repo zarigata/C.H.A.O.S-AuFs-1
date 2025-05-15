@@ -1,0 +1,39 @@
+{
+  "name": "chaos-messenger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "C.H.A.O.S. - Communication Hub for Animated Online Socializing",
+  "workspaces": [
+    "Frontend",
+    "Backend",
+    "Shared"
+  ],
+  "scripts": {
+    "prepare": "husky install",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm -r --stream test",
+    "build": "pnpm -r build",
+    "dev": "pnpm --parallel --stream dev"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "keywords": [
+    "messenger",
+    "chat",
+    "real-time",
+    "msn",
+    "tauri",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chaos-messenger": "file:"
+  }
+}
