@@ -20,6 +20,7 @@ import channelRoutes from './routes/channel.routes';
 import messageRoutes from './routes/message.routes';
 import friendRoutes from './routes/friend.routes';
 import directMessageRoutes from './routes/direct-message.routes';
+import { aiAssistantRoutes } from './routes/ai-assistant.routes';
 
 // Import WebSocket handler
 import setupWebsocketHandlers from './websocket';
@@ -75,6 +76,7 @@ async function setupServer() {
     await server.register(messageRoutes, { prefix: '/api/messages' });
     await server.register(friendRoutes, { prefix: '/api/friends' });
     await server.register(directMessageRoutes, { prefix: '/api/direct-messages' });
+    await server.register(aiAssistantRoutes, { prefix: '/api/ai' });
 
     // Setup WebSocket handlers
     setupWebsocketHandlers(server);

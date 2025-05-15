@@ -25,6 +25,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7",
     "@tauri-apps/api": "^1.5.2",
+    "axios": "^1.6.2",
     "chaos-frontend": "file:",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
