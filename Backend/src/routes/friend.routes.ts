@@ -48,7 +48,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET FRIENDS =================
   // =============================================
-  fastify.get('/', {
+  fastify.get('/friend-list', {
     schema: {
       response: {
         200: {

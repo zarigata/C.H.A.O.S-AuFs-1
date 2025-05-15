@@ -165,7 +165,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== DELETE MESSAGE ==============
   // =============================================
-  fastify.delete('/:id', {
+  fastify.delete('/message-delete/:id', {
     schema: {
       params: {
         type: 'object',

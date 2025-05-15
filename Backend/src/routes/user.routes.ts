@@ -104,7 +104,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET USER BY ID ==============
   // =============================================
-  fastify.get('/:id', {
+  fastify.get('/user-details/:id', {
     schema: {
       params: {
         type: 'object',

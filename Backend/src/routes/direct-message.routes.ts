@@ -53,7 +53,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET USER'S DMS ==============
   // =============================================
-  fastify.get('/', {
+  fastify.get('/dm-list', {
     schema: {
       response: {
         200: {
@@ -273,7 +273,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET DM BY ID ================
   // =============================================
-  fastify.get('/:id', {
+  fastify.get('/dm-details/:id', {
     schema: {
       params: {
         type: 'object',

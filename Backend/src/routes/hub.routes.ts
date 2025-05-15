@@ -143,7 +143,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET USER'S HUBS =============
   // =============================================
-  fastify.get('/', {
+  fastify.get('/hub-list', {
     schema: {
       response: {
         200: {
@@ -200,7 +200,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET HUB BY ID ===============
   // =============================================
-  fastify.get('/:id', {
+  fastify.get('/hub-details/:id', {
     schema: {
       params: {
         type: 'object',
@@ -273,7 +273,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== UPDATE HUB ==================
   // =============================================
-  fastify.patch('/:id', {
+  fastify.patch('/hub-update/:id', {
     schema: {
       params: {
         type: 'object',
@@ -353,7 +353,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== DELETE HUB ==================
   // =============================================
-  fastify.delete('/:id', {
+  fastify.delete('/hub-delete/:id', {
     schema: {
       params: {
         type: 'object',

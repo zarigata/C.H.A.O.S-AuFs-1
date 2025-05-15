@@ -55,7 +55,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== GET CHANNEL =================
   // =============================================
-  fastify.get('/:id', {
+  fastify.get('/channel-details/:id', {
     schema: {
       params: {
         type: 'object',
@@ -132,7 +132,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== UPDATE CHANNEL ==============
   // =============================================
-  fastify.patch('/:id', {
+  fastify.patch('/channel-update/:id', {
     schema: {
       params: {
         type: 'object',
@@ -215,7 +215,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
   // =============================================
   // ============== DELETE CHANNEL ==============
   // =============================================
-  fastify.delete('/:id', {
+  fastify.delete('/channel-delete/:id', {
     schema: {
       params: {
         type: 'object',
